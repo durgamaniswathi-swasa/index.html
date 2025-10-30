@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HopeConnect — Helping Hands Platform</title>
+
+  <!-- Leaflet + MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+
+  <!-- Lightweight icon (inline SVG used) -->
+  <style>
+    :root{
+      --bg:#f3f6f9; --card:#ffffff; --accent:#0b7285; --accent-2:#0ea5a4;
+      --muted:#6b7280; --danger:#d9534f; --success:#28a745;
+      --glass: rgba(255,255,255,0.7);
+    }
+    [data-theme="dark"]{
+      --bg:#0b1220; --card:#071226; --accent:#4fd1c5; --accent-2:#2dd4bf;
+      --muted:#9aa4b2; --glass: rgba(11,18,30,0.6);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,var(--bg),#ffffff);color:#0b1220}
+    header{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;padding:18px 20px;display:flex;align-items:center;gap:18px;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand h1{font-size:18px;margin:0}
+    .container{max-width:1200px;margin:16px auto;padding:0 16px}
+    .layout{display:grid;grid-template-columns:360px 1fr;gap:16px}
+    @media(max-width:980px){ .layout{grid-template-columns:1fr} header{flex-direction:column;align-items:flex-start} }
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 20px rgba(2,6,23,0.06);border:1px solid rgba(10,10,10,0.03)}
+    label{display:block;font-weight:600;margin-top:8px;color:var(--muted)}
+    input[type=text],input[type=search],select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6edf0;margin-top:6px;background:transparent}
+    button{background:var(--accent);color:#fff;border:0;padding:10px 12px;border-radius:10px;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(11,114,133,0.12);color:var(--accent)}
+    .small{font-size:13px;color:var(--muted)}
+    #map{height:640px;border-radius:10px;border:1px solid #e6edf0}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#f1f5f9;color:var(--muted)}
+    .stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .stat{flex:1;padding:12px;border-radius:10px;background:linear-gradient(180deg,var(--glass),transparent);min-width:140px}
+    .stat h3{margin:0;font-size:18px}
+    .muted{color:var(--muted)}
+    .report-item{padding:10px;border-radius:8px;border:1px solid #eef2f3;margin-bottom:8px;display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:start}
+    .report-item img{width:86px;height:64px;object-fit:cover;border-radius:6px}
+    .actions{display:flex;gap:6px;flex-wrap:wrap}
+    .searchbar{display:flex;gap:8px}
+    .topbar{display:flex;gap:8px;align-items:center}
+    footer{margin:20px 0;text-align:center;color:var(--muted);font-size:13px}
+    .toast{position:fixed;right:20px;bottom:20px;background:#111;color:#fff;padding:10px 14px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);opacity:0;transform:translateY(8px);transition:all .28s}
+    .toast.show{opacity:1;transform:translateY(0)}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}
+    .modal{background:var(--card);width:100%;max-width:920px;border-radius:10px;padding:14px;box-shadow:0 20px 40px rgba(2,6,23,0.4)}
+    .modal.show{display:block}
+    .flex{display:flex;gap:8px;align-items:center}
+    .muted-pill{padding:6px 8px;border-radius:999px;background:#f8fafc;color:var(--muted);font-weight:600}
+  </style>
+</head>
+<body data-theme="light">
+  <header>
+    <div class="brand">
+      <!-- simple logo -->
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <rect x="1" y="1" width="22" height="22" rx="6" fill="white" opacity="0.08"/>
+        <path d="M6 12c0-3.313 2.687-6 6-6s6 2.687 6 6v3a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-3z" fill="white"/>
+        <circle cx="12" cy="9" r="2.2" fill="white"/>
+      </svg>
+      <div>
+        <h1>HopeConnect</h1>
+        <div class="small">Report · Coordinate · Help</div>
+      </div>
+    </div>
+
+    <div class="topbar">
+      <div class="small muted">Dark</div>
+      <button id="toggleTheme" class="ghost" aria-pressed="false">Toggle Theme</button>
+      <button id="btnExport" class="ghost">Export JSON</button>
+      <button id="btnExportCSV" class="ghost">Export CSV</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="layout">
+      <!-- LEFT COLUMN: Controls -->
+      <section class="card" aria-label="controls">
+        <h2>Report & Controls</h2>
+
+        <div class="stats" aria-hidden>
+          <div class="stat">
+            <div class="small">Total Reports</div>
+            <h3 id="statTotal">0</h3>
+          </div>
+          <div class="stat">
+            <div class="small">Open</div>
+            <h3 id="statOpen">0</h3>
+          </div>
+          <div class="stat">
+            <div class="small">Resolved</div>
+            <h3 id="statResolved">0</h3>
+          </div>
+        </div>
+
+        <form id="reportForm" style="margin-top:10px">
+          <label for="inpType">Category</label>
+          <select id="inpType" required>
+            <option value="Homeless">Homeless</option>
+            <option value="Elderly">Elderly</option>
+            <option value="Disabled">Disabled</option>
+            <option value="Medical">Medical Emergency</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <label for="inpDesc">Short Description</label>
+          <textarea id="inpDesc" rows="3" placeholder="Example: elderly person near bus stop, appears disoriented"></textarea>
+
+          <label for="inpPhoto">Photo (optional)</label>
+          <input id="inpPhoto" type="file" accept="image/*" />
+
+          <label>Location</label>
+          <div style="display:flex;gap:8px">
+            <button type="button" id="btnLocate" class="ghost">Use my location</button>
+            <button type="button" id="btnPick" class="ghost">Pick on map</button>
+            <div id="coords" class="muted-pill">No location</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <label style="margin:0"><input type="checkbox" id="inpAnon"/> Report anonymously</label>
+            <div style="flex:1"></div>
+            <button type="submit">Submit</button>
+          </div>
+          <div class="small muted" style="margin-top:8px">Reports are stored locally in your browser (demo). You can export and share with authorities.</div>
+        </form>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #eef2f3">
+
+        <h3 class="small">Search & Filters</h3>
+        <div class="searchbar" style="margin-top:8px">
+          <input id="txtSearch" type="search" placeholder="Search description or category" />
+          <select id="filterStatus">
+            <option value="any">Any status</option>
+            <option value="open">Open</option>
+            <option value="in-progress">In progress</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+
+        <div style="margin-top:8px">
+          <label>Radius filter (km)</label>
+          <input id="radiusKm" type="number" placeholder="e.g. 5" min="0"/>
+        </div>
+
+        <div class="controls" style="margin-top:10px">
+          <button id="applyFilters" class="ghost">Apply</button>
+          <button id="clearFilters" class="ghost">Clear</button>
+          <button id="btnClearAll" class="ghost" style="color:var(--danger)">Clear Data</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <h3 class="small">Admin / Quick Actions</h3>
+          <div class="controls" style="margin-top:8px">
+            <button id="btnCluster" class="ghost">Toggle Clustering</button>
+            <button id="btnGallery" class="ghost">Open Photo Gallery</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Map & List -->
+      <section>
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 style="margin:0">Live Map</h2>
+            <div class="small muted">Click a marker to view details</div>
+          </div>
+          <div id="map" style="margin-top:10px"></div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h2 style="margin:0">Recent Reports</h2>
+            <div class="small muted" id="listCount">0</div>
+          </div>
+
+          <div id="list" style="margin-top:12px" class="small muted">
+            <!-- items injected here -->
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>HopeConnect — built to help vulnerable people. Demo single-page app. &middot; <span class="small muted">Local demo — connect to a server for production.</span></footer>
+  </main>
+
+  <!-- Photo modal & toast -->
+  <div id="modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="modalTitle">Photo</h3>
+        <div style="display:flex;gap:8px">
+          <button id="modalClose" class="ghost">Close</button>
+        </div>
+      </div>
+      <div id="modalBody" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+/*  HopeConnect — Single page enhanced UI
+    - LocalStorage model
+    - Map with clustering, reverse geocoding (Nominatim)
+    - Filters, search, gallery, export, dark mode
+*/
+
+// Storage key
+const KEY = 'hopeconnect_v3_reports';
+
+// App state
+let reports = JSON.parse(localStorage.getItem(KEY) || '[]');
+let selectedCoords = null;
+let pickMode = false;
+let markerClusterOn = true;
+let markers = []; // marker references
+let clusterGroup = L.markerClusterGroup();
+const map = L.map('map', {zoomControl:true}).setView([20.5937,78.9629], 5);
+
+// Tile layer
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// add cluster layer to map
+map.addLayer(clusterGroup);
+
+// UI refs
+const $ = id => document.getElementById(id);
+const toastEl = $('toast');
+function toast(msg, time=2500){ toastEl.innerText = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'), time); }
+
+// Reverse geocode (Nominatim) — include an email param (replace if you have one)
+async function reverseGeocode(lat,lng){
+  try{
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en&addressdetails=1&zoom=18&email=youremail@example.com`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('rcg fail');
+    const data = await res.json();
+    return data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }catch(err){
+    console.warn('Reverse geocode failed', err);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+}
+
+// Helpers
+function save(){
+  localStorage.setItem(KEY, JSON.stringify(reports));
+  renderStats();
+}
+function uid(){ return 'r'+Date.now()+Math.random().toString(36).slice(2,8); }
+function clearMapMarkers(){
+  clusterGroup.clearLayers();
+  markers = [];
+}
+
+// Create marker and popup HTML
+function createPopupHtml(r){
+  const lines = [];
+  lines.push(`<strong>${escapeHtml(r.category||r.type||'Report')}</strong>`);
+  if(r.desc) lines.push(`<div class="small">${escapeHtml(r.desc)}</div>`);
+  if(r.address) lines.push(`<div class="muted" style="margin-top:6px">${escapeHtml(r.address)}</div>`);
+  if(r.photo) lines.push(`<div style="margin-top:8px"><img src="${r.photo}" alt="photo" style="max-width:220px;border-radius:6px"/></div>`);
+  // actions
+  const mailBody = encodeURIComponent(`Please assist: ${r.category || r.type}\\nDescription: ${r.desc || '-'}\\nLocation: ${r.address || (r.lat+','+r.lng)}\\nReport ID: ${r.id}`);
+  lines.push(`<div class="actions" style="margin-top:8px"><button class="ghost" onclick="openGallery('${r.id}')">View Photo</button><button class="ghost" onclick="notifyReport('${r.id}')">Notify</button><button class="ghost" onclick="zoomToReport('${r.id}')">Zoom</button>${r.status!=='resolved'?`<button class="ghost" onclick="markResolved('${r.id}')">Mark resolved</button>`:''}</div>`);
+  return lines.join('');
+}
+
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// render markers from reports (applies filters externally)
+function renderMap(filtered=null){
+  clearMapMarkers();
+  const list = (filtered || reports);
+  list.forEach(r=>{
+    if(!r.lat || !r.lng) return;
+    const m = L.marker([r.lat, r.lng]);
+    m.bindPopup(createPopupHtml(r));
+    clusterGroup.addLayer(m);
+    markers.push({id:r.id, marker:m});
+  });
+}
+
+// UI: Render list
+function renderList(filtered=null){
+  const target = $('list');
+  target.innerHTML = '';
+  const list = (filtered || reports).slice().reverse();
+  $('listCount').innerText = list.length;
+  list.forEach(r=>{
+    const div = document.createElement('div');
+    div.className='report-item';
+    div.innerHTML = `
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <strong>${escapeHtml(r.category||r.type||'Report')}</strong>
+            <div class="small muted">${new Date(r.ts||0).toLocaleString()}</div>
+          </div>
+          <div style="text-align:right" class="small muted">${r.status || 'open'}</div>
+        </div>
+        <div style="margin-top:8px">${escapeHtml(r.desc||'')}</div>
+        <div style="margin-top:8px" class="small muted">${escapeHtml(r.address || (r.lat? (r.lat.toFixed(4)+', '+r.lng.toFixed(4)) : 'No location'))}</div>
+        <div style="margin-top:8px" class="actions">
+          <button class="ghost" onclick="zoomToReport('${r.id}')">View on map</button>
+          <button class="ghost" onclick="notifyReport('${r.id}')">Notify</button>
+          <button class="ghost" onclick="openGallery('${r.id}')">Photo</button>
+        </div>
+      </div>
+      <div>
+        ${r.photo?`<img src="${r.photo}" alt="photo">`:'<div style="width:86px;height:64px;background:#f1f5f9;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted)">No photo</div>'}
+      </div>
+    `;
+    target.appendChild(div);
+  });
+  renderStats();
+}
+
+// Stats
+function renderStats(){
+  const total = reports.length;
+  const open = reports.filter(r=>r.status==='open' || !r.status).length;
+  const resolved = reports.filter(r=>r.status==='resolved').length;
+  $('statTotal').innerText = total;
+  $('statOpen').innerText = open;
+  $('statResolved').innerText = resolved;
+}
+
+// Filters & search
+function applyFilters(){
+  let filtered = reports.slice();
+  const q = $('txtSearch').value.trim().toLowerCase();
+  const status = $('filterStatus').value;
+  const radiusKm = parseFloat($('radiusKm').value);
+  if(q) filtered = filtered.filter(r=>(r.desc||'').toLowerCase().includes(q) || (r.category||r.type||'').toLowerCase().includes(q));
+  if(status && status!=='any') filtered = filtered.filter(r=> (r.status||'open') === status );
+  if(radiusKm>0 && selectedCoords){
+    filtered = filtered.filter(r=>{
+      if(!r.lat || !r.lng) return false;
+      const d = distanceKm(selectedCoords.lat, selectedCoords.lng, r.lat, r.lng);
+      return d <= radiusKm;
+    });
+  }
+  renderMap(filtered);
+  renderList(filtered);
+  toast(`Filters applied — ${filtered.length} reports`);
+}
+
+// Haversine distance (km)
+function distanceKm(lat1,lon1,lat2,lon2){
+  const R=6371;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*c;
+}
+
+// CRUD actions
+async function submitReport(e){
+  e.preventDefault();
+  const desc = $('inpDesc').value.trim();
+  const category = $('inpType').value;
+  const anon = $('inpAnon').checked;
+  if(!selectedCoords) return toast('Please select a location (use locate or pick on map).');
+  // photo
+  const file = $('inpPhoto').files[0];
+  let photoData = null;
+  if(file){
+    photoData = await readFileDataURL(file);
+  }
+  const address = await reverseGeocode(selectedCoords.lat, selectedCoords.lng);
+  const r = { id: uid(), ts: Date.now(), category, desc, photo:photoData, lat:selectedCoords.lat, lng:selectedCoords.lng, address, status:'open', anon };
+  reports.push(r); save();
+  renderMap(); renderList();
+  $('reportForm').reset();
+  $('coords').innerText = 'No location'; selectedCoords = null;
+  toast('Report saved locally');
+}
+
+function readFileDataURL(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); }); }
+
+function zoomToReport(id){
+  const r = reports.find(x=>x.id===id); if(!r) return;
+  map.setView([r.lat, r.lng], 16);
+  // open popup on marker
+  const m = markers.find(mk=>mk.id===id);
+  if(m && m.marker) m.marker.openPopup();
+}
+
+function notifyReport(id){
+  const r = reports.find(x=>x.id===id); if(!r) return;
+  const subject = encodeURIComponent(`Help needed — ${r.category}`);
+  const body = encodeURIComponent(`Please help.\\nCategory: ${r.category}\\nDescription: ${r.desc}\\nLocation: ${r.address || (r.lat+','+r.lng)}\\nReport ID: ${r.id}`);
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+}
+
+function openGallery(id){
+  const r = reports.find(x=>x.id===id);
+  if(!r){ toast('No photo'); return; }
+  showModal(`<h4 style="margin:0">${escapeHtml(r.category)}</h4><div style="margin-top:8px">${r.photo?`<img src="${r.photo}" style="width:100%;border-radius:8px"/>`:'<div class="small muted">No photo uploaded</div>'}<div class="muted" style="margin-top:8px">${escapeHtml(r.address||'')}</div>`,'Photo');
+}
+
+function markResolved(id){
+  const r = reports.find(x=>x.id===id); if(!r) return;
+  r.status='resolved'; save(); renderMap(); renderList(); toast('Marked resolved');
+}
+
+// Modal
+function showModal(html, title=''){
+  $('modal').style.display='flex';
+  $('modal').setAttribute('aria-hidden','false');
+  $('modalTitle').innerText = title;
+  $('modalBody').innerHTML = html;
+}
+function hideModal(){ $('modal').style.display='none'; $('modal').setAttribute('aria-hidden','true'); $('modalBody').innerHTML=''; }
+
+// Exports
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(reports,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='hopeconnect_reports.json'; a.click(); URL.revokeObjectURL(url);
+}
+function exportCSV(){
+  if(!reports.length) return toast('No reports');
+  const keys = ['id','ts','category','desc','address','lat','lng','status','anon'];
+  const rows=[keys.join(',')];
+  reports.forEach(r=>{
+    rows.push(keys.map(k=>`"${((r[k]||'')+'').replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([rows.join('\\n')],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='hopeconnect_reports.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+// Utilities: read current center coords and pick mode
+$('btnLocate').addEventListener('click', ()=>{
+  if(!navigator.geolocation) return toast('Geolocation not available');
+  $('btnLocate').innerText='Locating...';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    $('btnLocate').innerText='Use my location';
+    selectedCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    $('coords').innerText = `${selectedCoords.lat.toFixed(5)}, ${selectedCoords.lng.toFixed(5)}`;
+    map.setView([selectedCoords.lat, selectedCoords.lng], 15);
+    // add a temp marker
+    L.circleMarker([selectedCoords.lat, selectedCoords.lng], {radius:8, color: 'var(--accent)'}).addTo(map);
+  }, err=>{ $('btnLocate').innerText='Use my location'; toast('Could not get location: '+err.message); });
+});
+
+$('btnPick').addEventListener('click', ()=>{ pickMode = !pickMode; $('btnPick').innerText = pickMode? 'Click on map (pick)' : 'Pick on map'; toast('Pick mode '+(pickMode?'ON':'OFF')); });
+
+map.on('click', e=>{
+  if(!pickMode) return;
+  selectedCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
+  $('coords').innerText = `${selectedCoords.lat.toFixed(5)}, ${selectedCoords.lng.toFixed(5)}`;
+  pickMode = false; $('btnPick').innerText='Pick on map';
+  toast('Location selected');
+});
+
+// attach submit
+$('reportForm').addEventListener('submit', submitReport);
+
+// initial render
+renderStats();
+
+// map & list rendering with current reports
+function rebuildUI(){
+  clearMapMarkers();
+  reports.forEach(r=>{
+    if(r.lat && r.lng){
+      const m = L.marker([r.lat, r.lng]);
+      m.bindPopup(createPopupHtml(r));
+      clusterGroup.addLayer(m);
+      markers.push({id:r.id, marker:m});
+    }
+  });
+  renderList();
+}
+rebuildUI();
+
+// Filter apply/clear
+$('applyFilters').addEventListener('click', applyFilters);
+$('clearFilters').addEventListener('click', ()=>{ $('txtSearch').value=''; $('filterStatus').value='any'; $('radiusKm').value=''; renderMap(); renderList(); toast('Filters cleared');});
+
+// exports
+$('btnExport').addEventListener('click', exportJSON);
+$('btnExportCSV').addEventListener('click', exportCSV);
+
+// gallery open (shows all with photos)
+$('btnGallery').addEventListener('click', ()=>{
+  const html = reports.filter(r=>r.photo).map(r=>`<div style="margin-bottom:10px"><h4 style="margin:0">${escapeHtml(r.category)} <small class="muted">${new Date(r.ts).toLocaleString()}</small></h4><img src="${r.photo}" style="width:100%;border-radius:8px;margin-top:6px"/></div>`).join('') || '<div class="muted">No photos available</div>';
+  showModal(html, 'Photo gallery');
+});
+
+// clear all
+$('btnClearAll').addEventListener('click', ()=>{
+  if(!confirm('Clear all saved reports?')) return;
+  reports=[]; save(); rebuildUI(); toast('All data cleared');
+});
+
+// clustering toggle
+$('btnCluster').addEventListener('click', ()=>{
+  markerClusterOn = !markerClusterOn;
+  if(markerClusterOn){
+    map.addLayer(clusterGroup);
+    toast('Clustering enabled');
+  } else {
+    map.removeLayer(clusterGroup);
+    // fallback: directly add markers (not implemented in detail)
+    toast('Clustering disabled (map may be cluttered)');
+  }
+});
+
+// modal close
+$('modalClose').addEventListener('click', hideModal);
+$('modal').addEventListener('click', (e)=>{ if(e.target===$('modal')) hideModal(); });
+
+// theme toggle
+$('toggleTheme').addEventListener('click', ()=>{
+  const el = document.body;
+  const isDark = el.getAttribute('data-theme') === 'dark';
+  el.setAttribute('data-theme', isDark? 'light':'dark');
+  $('toggleTheme').setAttribute('aria-pressed', !isDark);
+});
+
+// helper to mark resolved via popup button (global scope)
+window.markResolved = markResolved;
+window.zoomToReport = zoomToReport;
+window.notifyReport = notifyReport;
+window.openGallery = openGallery;
+
+// small usability: show toast when loading
+toast('HopeConnect ready — local demo');
+
+// end
+</script>
+</body>
+</html>
